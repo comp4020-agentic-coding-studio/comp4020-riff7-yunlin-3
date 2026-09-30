@@ -858,3 +858,58 @@ details.building .library-body {
 .library-body .rooms {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
 }
+
+/* --- Floor picker ------------------------------------------------------- */
+
+.floor-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0 1rem 0.8rem;
+}
+
+.floor-picker a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.floor-picker a:hover {
+  border-color: var(--ink);
+}
+
+.floor-picker a[aria-current="page"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.floor-picker a.has-now {
+  border-color: var(--gold);
+}
+
+.floor-count {
+  min-width: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.floor-picker a[aria-current="page"] .floor-count {
+  background: var(--paper);
+}
+
+.no-rooms {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+}

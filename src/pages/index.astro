@@ -81,16 +81,43 @@ const libraries = LIBRARIES.map((library) => {
     const design = designFor(entry.room.name);
     return design && design.library === library.id ? [{ ...entry, design, state: stateOf(entry.bookings) }] : [];
   });
+  const levels = library.levels.map((level) => {
+    const levelRooms = libRooms.filter((r) => r.design.level === level.id);
+    return {
+      level,
+      rooms: levelRooms,
+      plan: levelRooms.map(({ room, design, state }) => ({
+        id: room.id,
+        name: room.name,
+        design,
+        state,
+        href: `/?${new URLSearchParams({ date, room: String(room.id) })}#book`,
+      })),
+      inUse: levelRooms.filter((r) => r.state === "now").length,
+      booked: levelRooms.reduce((n, r) => n + r.bookings.length, 0),
+    };
+  });
+  // Which floor the picker opens on: ?floor-<building>=<level> if it names a
+  // real one, else the floor with a room in use, else the busiest, else the
+  // one with the most bookable rooms — kept in the URL so the picker works
+  // with no script and a reload lands on the same floor.
+  const requested = Astro.url.searchParams.get(`floor-${library.id}`);
+  const ranked = [...levels].sort(
+    (a, b) => b.inUse - a.inUse || b.booked - a.booked || b.rooms.length - a.rooms.length,
+  );
+  const selected = levels.find((l) => l.level.id === requested) ?? ranked[0];
+  const floorHref = (levelId: string) => {
+    const params = new URLSearchParams(Astro.url.searchParams);
+    params.delete("error");
+    params.set(`floor-${library.id}`, levelId);
+    return `/?${params}#lib-${library.id}`;
+  };
   return {
     library,
     rooms: libRooms,
-    plan: libRooms.map(({ room, design, state }) => ({
-      id: room.id,
-      name: room.name,
-      design,
-      state,
-      href: `/?${new URLSearchParams({ date, room: String(room.id) })}#book`,
-    })),
+    levels,
+    selected,
+    floorHref,
     inUse: libRooms.filter((r) => r.state === "now").length,
   };
 }).filter((l) => l.rooms.length > 0);
@@ -204,28 +231,43 @@ const nextBoundaryTarget = isToday
             <button type="button" data-details="close">Close all</button>
           </span>
         </div>
-      {libraries.map(({ library, rooms: libRooms, plan, inUse }) => (
-        <details class="building" id={`lib-${library.id}`} open={libRooms.some((r) => r.bookings.length > 0)}>
+      {libraries.map(({ library, rooms: libRooms, levels, selected, floorHref, inUse }) => (
+        <details class="building" id={`lib-${library.id}`} open={libRooms.some((r) => r.bookings.length > 0) || Astro.url.searchParams.has(`floor-${library.id}`)}>
           <summary>
             <span class="building-title">
               <h3 id={`lib-${library.id}-heading`}>{library.name}</h3>
-              <span class="level">{library.level}</span>
+              <span class="level">{levels.length} {levels.length === 1 ? "floor" : "floors"}</span>
             </span>
             <span class="building-status">
               <span class="chip chip-free">{libRooms.length - inUse} available</span>
               {inUse > 0 && <span class="chip chip-now">{inUse} in use</span>}
             </span>
           </summary>
+          <nav class="floor-picker" aria-label={`${library.name} floors`}>
+            {levels.map((l) => (
+              <a
+                href={floorHref(l.level.id)}
+                aria-current={l === selected ? "page" : undefined}
+                class={l.inUse > 0 ? "has-now" : undefined}
+              >
+                {l.level.name}
+                {l.rooms.length > 0 && <span class="floor-count">{l.rooms.length}</span>}
+              </a>
+            ))}
+          </nav>
           <div class="library-body">
           <figure class="plan-figure">
-            <FloorPlan library={library} rooms={plan} />
+            <FloorPlan library={library} level={selected.level} rooms={selected.plan} />
             <figcaption class="plan-caption">
-              <span>{library.level}, from {library.source}.</span>
+              <span>{selected.level.name}, from {selected.level.source}.</span>
               <button type="button" class="plan-toggle" aria-expanded="false">Enlarge plan</button>
             </figcaption>
           </figure>
           <div class="rooms">
-        {libRooms.map(({ room, bookings, design, state }) => (
+        {selected.rooms.length === 0 && (
+          <p class="no-rooms">No bookable rooms on {selected.level.name} — pick another floor.</p>
+        )}
+        {selected.rooms.map(({ room, bookings, design, state }) => (
           <section class={state === "now" ? "room" : "room available"} aria-labelledby={`room-${room.id}`}>
             <h4 id={`room-${room.id}`}>{room.name}</h4>
             <p class="room-meta">{describeRoom(design)}</p>

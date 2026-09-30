@@ -1,21 +1,23 @@
 ---
-import type { Library, RoomDesign, RoomState, Wall } from "../lib/layout";
+import type { Level, Library, RoomDesign, RoomState, Wall } from "../lib/layout";
 
 interface Props {
   library: Library;
+  level: Level;
   rooms: { id: number; design: RoomDesign; state: RoomState; href: string; name: string }[];
 }
 
-const { library, rooms } = Astro.props;
-const W = library.viewBox.w;
-const H = library.viewBox.h;
-const hatchId = `hatch-${library.id}`;
+const { library, level, rooms } = Astro.props;
+const W = level.viewBox.w;
+const H = level.viewBox.h;
+// One pattern per rendered plan: several levels of one building share a page.
+const hatchId = `hatch-${library.id}-${level.id}`;
 
 const stateWords: Record<RoomState, string> = { now: "in use now", booked: "booked later", free: "free" };
 
 
 // Decorative plan features, pre-expanded into primitive shapes.
-const features = library.features.map((f) => {
+const features = level.features.map((f) => {
   const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
   const blocks: { x: number; y: number; w: number; h: number }[] = [];
   if (f.kind === "stairs") {
@@ -97,7 +99,7 @@ const summary = rooms.map((r) => `${r.design.label} ${stateWords[r.state]}`).joi
   class="plan"
   viewBox={`0 0 ${W} ${H}`}
   role="group"
-  aria-label={`Floor plan of ${library.name}, ${library.level}. ${summary}.`}
+  aria-label={`Floor plan of ${library.name}, ${level.name}.${summary ? ` ${summary}.` : ""}`}
 >
   <defs>
     <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -106,7 +108,7 @@ const summary = rooms.map((r) => `${r.design.label} ${stateWords[r.state]}`).joi
   </defs>
 
   <g aria-hidden="true">
-    <path d={library.outline} class="plan-floor"></path>
+    <path d={level.outline} class="plan-floor"></path>
     {features.map((f) => (
       <g class={`feature feature-${f.kind}`}>
         {f.outlined && <rect x={f.x} y={f.y} width={f.w} height={f.h} class="feature-outline"></rect>}
@@ -119,7 +121,7 @@ const summary = rooms.map((r) => `${r.design.label} ${stateWords[r.state]}`).joi
         )}
       </g>
     ))}
-    <path d={library.outline} class="plan-wall"></path>
+    <path d={level.outline} class="plan-wall"></path>
   </g>
 
   {roomShapes.map((r) => (
