@@ -1,6 +1,9 @@
 ---
-import { canberraParts, canberraWallTimeToEpochMs, nextReloadTargetEpochMs, shiftDate } from "../lib/clock";
-import { listBookingsForDate, listRooms } from "../lib/db";
+import { addMinutesToTime, canberraParts, canberraWallTimeToEpochMs, nextReloadTargetEpochMs, shiftDate } from "../lib/clock";
+import { GRACE_MINUTES, expireNoShows, listBookingsForDate, listRooms } from "../lib/db";
+import { LIBRARIES, type RoomState, describeRoom, designFor } from "../lib/layout";
+import CampusMap from "../components/CampusMap.astro";
+import FloorPlan from "../components/FloorPlan.astro";
 import "../styles.css";
 
 // All times on this board are Canberra wall-clock text (see src/lib/schema.ts)
@@ -20,6 +23,13 @@ const errorMessages: Record<string, string> = {
   room: "Pick a room.",
 };
 
+// Sweeps today's no-shows (see db.ts's expireNoShows) before anything below
+// reads the list, so a booking past its check-in deadline is simply gone —
+// there's no separate "expired" state for the rest of this page to render.
+// Only ever run for today: a past date's history is never retroactively
+// erased, the same scoping isNowWithin below already uses.
+if (isToday) expireNoShows(date, nowTime);
+
 const rooms = listRooms();
 const bookingsForDate = listBookingsForDate(date);
 // Whether "now" falls inside a booking is decided here, in plain TS, and
@@ -31,8 +41,47 @@ const roomsWithBookings = rooms.map((room) => ({
   room,
   bookings: bookingsForDate
     .filter((b) => b.roomId === room.id)
-    .map((b) => ({ ...b, active: isNowWithin(b.startTime, b.endTime) })),
+    .map((b) => {
+      const active = isNowWithin(b.startTime, b.endTime);
+      const checkedIn = b.checkedInAt !== null;
+      // Only an active, un-checked-in booking is on the clock — this is the
+      // wall-clock time expireNoShows will reclaim it at on some future
+      // render, shown so the room's actual occupant has a reason to hit
+      // "Check in" before then.
+      const noShowDeadline = active && !checkedIn ? addMinutesToTime(b.startTime, GRACE_MINUTES) : null;
+      return { ...b, active, checkedIn, noShowDeadline };
+    }),
 }));
+
+// The physical view: rooms grouped under the library they sit in, each with
+// a state for its floor-plan shape. "booked" means there's still a booking
+// ahead of it on this date (on today, one that hasn't ended yet) — drawn as
+// ink hatching, so gold stays the one colour for "in use right now".
+const preselectRoom = Number(Astro.url.searchParams.get("room"));
+const stateOf = (bookings: (typeof roomsWithBookings)[number]["bookings"]): RoomState =>
+  bookings.some((b) => b.active)
+    ? "now"
+    : bookings.some((b) => !isToday || b.endTime > nowTime)
+      ? "booked"
+      : "free";
+const libraries = LIBRARIES.map((library) => {
+  const libRooms = roomsWithBookings.flatMap((entry) => {
+    const design = designFor(entry.room.name);
+    return design && design.library === library.id ? [{ ...entry, design, state: stateOf(entry.bookings) }] : [];
+  });
+  return {
+    library,
+    rooms: libRooms,
+    plan: libRooms.map(({ room, design, state }) => ({
+      id: room.id,
+      name: room.name,
+      design,
+      state,
+      href: `/?${new URLSearchParams({ date, room: String(room.id) })}#book`,
+    })),
+    inUse: libRooms.filter((r) => r.state === "now").length,
+  };
+}).filter((l) => l.rooms.length > 0);
 
 // Passed to the client script below so a tab left open across a booking's
 // start/end minute — or across midnight, with no bookings left to wait for
@@ -49,8 +98,14 @@ const roomsWithBookings = rooms.map((room) => ({
 // nights a year Canberra's clocks shift for daylight saving (see
 // canberraWallTimeToEpochMs in src/lib/clock.ts) — the client instead
 // computes its own delay as target-minus-now at load time.
+const noShowDeadlines = roomsWithBookings.flatMap(({ bookings }) =>
+  bookings.flatMap((b) => (b.noShowDeadline ? [b.noShowDeadline] : [])),
+);
 const nextBoundaryTarget = isToday
-  ? nextReloadTargetEpochMs(date, nowTime, bookingsForDate.flatMap((b) => [b.startTime, b.endTime]))
+  ? nextReloadTargetEpochMs(date, nowTime, [
+      ...bookingsForDate.flatMap((b) => [b.startTime, b.endTime]),
+      ...noShowDeadlines,
+    ])
   : date === shiftDate(today, 1)
     ? canberraWallTimeToEpochMs(date, "00:00")
     : null;
@@ -92,10 +147,28 @@ const nextBoundaryTarget = isToday
         </p>
       )}
 
-      <div class="rooms">
-        {roomsWithBookings.map(({ room, bookings }) => (
+      <section class="campus-section" aria-labelledby="campus-heading">
+        <h2 id="campus-heading">Where the rooms are</h2>
+        <CampusMap libraries={libraries.map((l) => ({ library: l.library, roomCount: l.rooms.length, inUse: l.inUse }))} />
+      </section>
+
+      <ul class="legend" aria-label="Floor plan key">
+        <li><span class="swatch swatch-free"></span>Free</li>
+        <li><span class="swatch swatch-booked"></span>Booked later</li>
+        <li><span class="swatch swatch-now"></span>In use now</li>
+      </ul>
+
+      {libraries.map(({ library, rooms: libRooms, plan }) => (
+        <section class="library" id={`lib-${library.id}`} aria-labelledby={`lib-${library.id}-heading`}>
+          <h2 id={`lib-${library.id}-heading`}>
+            {library.name} <span class="level">{library.level}</span>
+          </h2>
+          <FloorPlan library={library} rooms={plan} />
+          <div class="rooms">
+        {libRooms.map(({ room, bookings, design }) => (
           <section class="room" aria-labelledby={`room-${room.id}`}>
-            <h2 id={`room-${room.id}`}>{room.name}</h2>
+            <h3 id={`room-${room.id}`}>{room.name}</h3>
+            <p class="room-meta">{describeRoom(design)}</p>
             <ul>
               {bookings.length === 0 && <li class="empty">Free all day</li>}
               {bookings.map((booking) => (
@@ -104,6 +177,15 @@ const nextBoundaryTarget = isToday
                     {booking.startTime}–{booking.endTime}
                   </span>
                   <span class="who">{booking.bookedBy}</span>
+                  {booking.noShowDeadline && (
+                    <span class="no-show-note">auto-releases at {booking.noShowDeadline} unless checked in</span>
+                  )}
+                  {booking.active && !booking.checkedIn && (
+                    <form method="post" action={`/api/bookings/${booking.id}/checkin`}>
+                      <input type="hidden" name="date" value={date} />
+                      <button type="submit">Check in</button>
+                    </form>
+                  )}
                   <form method="post" action={`/api/bookings/${booking.id}/cancel`}>
                     <input type="hidden" name="date" value={date} />
                     <button type="submit">Cancel</button>
@@ -113,16 +195,18 @@ const nextBoundaryTarget = isToday
             </ul>
           </section>
         ))}
-      </div>
+          </div>
+        </section>
+      ))}
 
-      <form method="post" action="/api/bookings" class="book-form">
+      <form method="post" action="/api/bookings" class="book-form" id="book">
         <h2>Book a room</h2>
         <input type="hidden" name="date" value={date} />
         <div>
           <label for="roomId">Room</label>
           <select id="roomId" name="roomId" required>
             {rooms.map((room) => (
-              <option value={room.id}>{room.name}</option>
+              <option value={room.id} selected={room.id === preselectRoom}>{room.name}</option>
             ))}
           </select>
         </div>

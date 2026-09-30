@@ -27,6 +27,10 @@ export const bookings = sqliteTable("bookings", {
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
+  // Null until someone hits "Check in" — the read half (db.ts's
+  // expireNoShows) uses this, not createdAt, to tell a booking that's
+  // actually being used from one nobody ever showed up for.
+  checkedInAt: text("checked_in_at"),
 });
 
 export type Room = typeof rooms.$inferSelect;

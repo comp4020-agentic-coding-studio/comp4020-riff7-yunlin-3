@@ -3,6 +3,17 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
+// Used to show a booking's own no-show deadline (start time + the grace
+// period in db.ts's GRACE_MINUTES) as a wall-clock time, the same shape as
+// every other time on the board. Never called across midnight — a booking's
+// grace window is short enough that it can't cross into the next day.
+export function addMinutesToTime(hhmm: string, minutes: number): string {
+  const total = toMinutes(hhmm) + minutes;
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function canberraParts(d: Date): { date: string; time: string } {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Canberra",

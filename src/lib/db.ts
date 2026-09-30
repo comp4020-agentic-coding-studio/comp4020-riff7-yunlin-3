@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { type Booking, type Room, bookings, rooms } from "./schema";
@@ -45,6 +45,54 @@ export function listRooms(): Room[] {
 
 export function listBookingsForDate(date: string): Booking[] {
   return db.select().from(bookings).where(eq(bookings.date, date)).orderBy(bookings.startTime).all();
+}
+
+// Minutes into a booking's start before an un-checked-in room counts as a
+// no-show and its slot is taken back — the same "happening now" red is
+// otherwise indistinguishable from "booked, but nobody's actually here",
+// which is the exact real-system friction this board stands in for
+// (see README.md). Kept short enough to matter inside a half-hour session.
+export const GRACE_MINUTES = 5;
+
+/**
+ * The read half of the no-show mechanic: any booking that started more than
+ * GRACE_MINUTES ago with no check-in is deleted here, before the caller sees
+ * the list — so "expired" is never a separate state the UI has to render,
+ * it just means the slot is free again. Only ever called for *today* (see
+ * index.astro), the same scoping isNowWithin already uses — a past date's
+ * unchecked bookings are left as history, not retroactively erased. Takes
+ * `nowTime` (Canberra HH:MM, from clock.ts) rather than reading the clock
+ * itself, so it can be driven by a fixed instant in tests the same way
+ * addBooking's overlap check is.
+ */
+export function expireNoShows(date: string, nowTime: string): void {
+  const candidates = db
+    .select()
+    .from(bookings)
+    .where(and(eq(bookings.date, date), isNull(bookings.checkedInAt)))
+    .all();
+  for (const booking of candidates) {
+    if (minutesSince(booking.startTime, nowTime) >= GRACE_MINUTES) {
+      db.delete(bookings).where(eq(bookings.id, booking.id)).run();
+    }
+  }
+}
+
+function minutesSince(startTime: string, nowTime: string): number {
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [nh, nm] = nowTime.split(":").map(Number);
+  return nh * 60 + nm - (sh * 60 + sm);
+}
+
+/** Marks a booking as checked into, so expireNoShows never reclaims it. Returns the booking's own date, or null if no booking with that id existed. */
+export function checkIn(id: number): string | null {
+  const updated = db
+    .update(bookings)
+    .set({ checkedInAt: sql`(datetime('now'))` })
+    .where(eq(bookings.id, id))
+    .returning()
+    .all();
+  return updated[0]?.date ?? null;
 }
 
 function overlaps(a: Booking | NewBooking, b: Booking): boolean {

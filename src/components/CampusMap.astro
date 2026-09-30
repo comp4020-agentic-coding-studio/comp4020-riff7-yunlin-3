@@ -1,0 +1,60 @@
+---
+import type { Library } from "../lib/layout";
+
+interface Props {
+  libraries: { library: Library; roomCount: number; inUse: number }[];
+}
+
+const { libraries } = Astro.props;
+
+// Schematic context around the libraries: ANU's Acton campus reduced to the
+// creek, the main avenue and a few neighbouring blocks, enough to tell
+// "Hancock is out west by the creek" from "Chifley is by Union Court".
+const neighbours = [
+  { x: 320, y: 70, w: 80, h: 60 },
+  { x: 430, y: 60, w: 110, h: 50 },
+  { x: 180, y: 240, w: 90, h: 70 },
+  { x: 540, y: 240, w: 70, h: 60 },
+  { x: 440, y: 130, w: 70, h: 50 },
+];
+
+const markers = libraries.map(({ library: l, roomCount, inUse }) => ({
+  id: l.id,
+  name: l.name,
+  rect: l.map,
+  cx: l.map.x + l.map.w / 2,
+  status: `${roomCount} room${roomCount === 1 ? "" : "s"}${inUse > 0 ? ` · ${inUse} in use` : ""}`,
+  inUse: inUse > 0,
+  aria: `${l.name}: ${roomCount} group rooms, ${inUse} in use now. Jump to its floor plan.`,
+}));
+---
+
+<svg class="campus" viewBox="0 0 640 360" role="group" aria-label="Schematic map of the ANU Acton campus libraries">
+  <g aria-hidden="true">
+    <rect x="0" y="0" width="640" height="360" class="campus-ground"></rect>
+    <path d="M 70 0 C 110 90, 40 170, 90 250 S 120 330, 100 360" class="creek"></path>
+    <path d="M 80 0 C 120 90, 50 170, 100 250 S 130 330, 110 360" class="creek"></path>
+    <text x="22" y="190" class="map-label" transform="rotate(-78 22 190)">Sullivans Creek</text>
+    <line x1="0" y1="200" x2="640" y2="200" class="road"></line>
+    <text x="560" y="194" class="map-label" text-anchor="middle">University Ave</text>
+    <rect x="300" y="226" width="80" height="60" class="plaza"></rect>
+    <text x="340" y="302" class="map-label" text-anchor="middle">Union Court</text>
+    {neighbours.map((n) => <rect x={n.x} y={n.y} width={n.w} height={n.h} class="neighbour"></rect>)}
+    <text x="630" y="352" class="map-note" text-anchor="end">Schematic — not to scale</text>
+  </g>
+
+  {markers.map((m) => (
+    <a href={`#lib-${m.id}`} aria-label={m.aria} class={`library-marker${m.inUse ? " in-use" : ""}`}>
+      <rect x={m.rect.x} y={m.rect.y} width={m.rect.w} height={m.rect.h} rx="3" class="library-shape"></rect>
+      <g aria-hidden="true">
+        <text x={m.cx} y={m.rect.y + m.rect.h / 2 - 2} text-anchor="middle" class="library-name">
+          {m.name}
+        </text>
+        <text x={m.cx} y={m.rect.y + m.rect.h / 2 + 14} text-anchor="middle" class="library-status">
+          {m.status}
+        </text>
+        {m.inUse && <circle cx={m.rect.x + m.rect.w - 10} cy={m.rect.y + 10} r="5" class="now-dot"></circle>}
+      </g>
+    </a>
+  ))}
+</svg>

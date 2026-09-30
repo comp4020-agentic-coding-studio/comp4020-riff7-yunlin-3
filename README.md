@@ -28,6 +28,22 @@ source:
 - a booking made in one tab reaches another tab open on the same date, over
   the same server-sent-events stream the starter shipped with
 
+## The riff: where the rooms are, and whether anyone's in them
+
+A crit-session riff took the board past its original brief in two ways:
+
+- **A campus map and floor plans.** The board now shows where each library
+  sits on campus and draws each floor: walls, entry, stairs, lift, the
+  collection, and every group room with its table, chairs, wall screen and
+  whiteboard. A room is white when it's free, hatched when it's booked later,
+  and ANU Gold when it's in use right now. Gold still means only one thing.
+  Clicking a room opens the booking form with that room already picked. The
+  plans are schematic, drawn to explain the board rather than surveyed.
+- **Check-in, or lose the room.** The README's own problem was a booked room
+  with nobody in it. Now a booking that has started shows a *Check in*
+  button. If nobody checks in within five minutes of the start, the booking
+  is released and the room goes back to free for anyone walking past.
+
 Deliberately left out, as judgement calls rather than enforced rules: no
 login (the real system's biggest source of friction, and out of scope for a
 prototype with no real ANU identities to check), no room search across all of
