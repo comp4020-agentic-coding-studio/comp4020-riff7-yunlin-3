@@ -32,13 +32,17 @@ source:
 
 A crit-session riff took the board past its original brief in two ways:
 
-- **A campus map and floor plans.** The board now shows where each library
-  sits on campus and draws each floor: walls, entry, stairs, lift, the
-  collection, and every group room with its table, chairs, wall screen and
-  whiteboard. A room is white when it's free, hatched when it's booked later,
-  and ANU Gold when it's in use right now. Gold still means only one thing.
-  Clicking a room opens the booking form with that room already picked. The
-  plans are schematic, drawn to explain the board rather than surveyed.
+- **A real campus map and real floor plans.** The campus map is Google
+  Maps, and each library links to its exact pin, taken from the building's
+  anu.edu.au/maps page. Each library's Level 3 is traced from ANU Library's
+  own published floor plans (Hancock, Feb 2021; Chifley, Mar 2021). The
+  seeded rooms now carry their real numbers: Hancock Group Study 3.33 and
+  3.34, and Chifley Group Study 3.05. Each bookable room is drawn with a
+  table, chairs, wall screen and whiteboard. A room is white when it's free,
+  hatched when it's booked later, and ANU Gold when it's in use right now.
+  Gold still means only one thing. Clicking a room opens the booking form
+  with that room already picked. Seat counts are indicative, because the
+  library publishes which rooms exist but not how many chairs each has.
 - **Check-in, or lose the room.** The README's own problem was a booked room
   with nobody in it. Now a booking that has started shows a *Check in*
   button. If nobody checks in within five minutes of the start, the booking

@@ -7,15 +7,12 @@ interface Props {
 }
 
 const { library, rooms } = Astro.props;
-const W = 420;
-const H = 260;
+const W = library.viewBox.w;
+const H = library.viewBox.h;
 const hatchId = `hatch-${library.id}`;
 
 const stateWords: Record<RoomState, string> = { now: "in use now", booked: "booked later", free: "free" };
 
-// Outer wall, broken on the south side for the entry.
-const e = library.entry;
-const outline = `M ${e.x + e.w} ${H - 10} H ${W - 10} V 10 H 10 V ${H - 10} H ${e.x}`;
 
 // Decorative plan features, pre-expanded into primitive shapes.
 const features = library.features.map((f) => {
@@ -33,8 +30,15 @@ const features = library.features.map((f) => {
     for (let r = 0; r < rows; r++)
       for (let c = 0; c < cols; c++) blocks.push({ x: f.x + c * 42 + 6, y: f.y + 16 + r * 22, w: 28, h: 12 });
   }
-  const outlined = f.kind === "stairs" || f.kind === "lift";
-  return { ...f, lines, blocks, outlined };
+  const outlined = f.kind === "stairs" || f.kind === "lift" || f.kind === "room" || f.kind === "void";
+  // Labels sit inside rooms, below stairs and lifts, and above everything else.
+  const labelPos =
+    f.kind === "room"
+      ? { x: f.x + f.w / 2, y: f.y + f.h / 2 + 4, anchor: "middle" }
+      : f.kind === "stairs" || f.kind === "lift"
+        ? { x: f.x, y: f.y + f.h + 13, anchor: "start" }
+        : { x: f.x, y: f.y + 10, anchor: "start" };
+  return { ...f, lines, blocks, outlined, labelPos };
 });
 
 // Where a wall segment sits for a room, as a line — used for the door gap,
@@ -56,9 +60,11 @@ const roomShapes = rooms.map(({ id, design: d, state, href, name }) => {
   const ty = d.y + (d.h - th) / 2 + 4;
   const top = Math.ceil(d.capacity / 2);
   const bottom = Math.floor(d.capacity / 2);
+  // Small rooms (Chifley's are ~40 units wide) get proportionally smaller chairs.
+  const r = Math.max(2, Math.min(4, tw / (top + 1) / 2.4));
   const chairs = [
-    ...Array.from({ length: top }, (_, i) => ({ cx: tx + (tw * (i + 1)) / (top + 1), cy: ty - 7 })),
-    ...Array.from({ length: bottom }, (_, i) => ({ cx: tx + (tw * (i + 1)) / (bottom + 1), cy: ty + th + 7 })),
+    ...Array.from({ length: top }, (_, i) => ({ cx: tx + (tw * (i + 1)) / (top + 1), cy: ty - r - 3 })),
+    ...Array.from({ length: bottom }, (_, i) => ({ cx: tx + (tw * (i + 1)) / (bottom + 1), cy: ty + th + r + 3 })),
   ];
   return {
     id,
@@ -69,11 +75,12 @@ const roomShapes = rooms.map(({ id, design: d, state, href, name }) => {
     rect: { x: d.x, y: d.y, w: d.w, h: d.h },
     table: { x: tx, y: ty, w: tw, h: th },
     chairs,
+    r,
     door: wallSegment(d, d.door, 0.4, 0.6),
     screen: d.screen ? wallSegment(d, opposite[d.door], 0.3, 0.7) : null,
     whiteboard: d.whiteboard ? wallSegment(d, side[d.door], 0.25, 0.75) : null,
-    labelPos: { x: d.x + 8, y: d.y + 16 },
-    seatsPos: { x: d.x + 8, y: d.y + d.h - 8 },
+    labelPos: { x: d.x + d.w / 2, y: d.y + 14 },
+    seatsPos: { x: d.x + d.w / 2, y: d.y + d.h - 5 },
     seats: `${d.capacity} seats`,
   };
 });
@@ -94,21 +101,20 @@ const summary = rooms.map((r) => `${r.design.label} ${stateWords[r.state]}`).joi
   </defs>
 
   <g aria-hidden="true">
-    <rect x="10" y="10" width={W - 20} height={H - 20} class="plan-floor"></rect>
+    <path d={library.outline} class="plan-floor"></path>
     {features.map((f) => (
       <g class={`feature feature-${f.kind}`}>
         {f.outlined && <rect x={f.x} y={f.y} width={f.w} height={f.h} class="feature-outline"></rect>}
         {f.lines.map((l) => <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}></line>)}
         {f.blocks.map((b) => <rect x={b.x} y={b.y} width={b.w} height={b.h} class="feature-block"></rect>)}
         {f.label && (
-          <text x={f.x} y={f.kind === "lift" ? f.y + f.h + 12 : f.y + (f.kind === "stairs" ? f.h + 12 : 8)}>
+          <text x={f.labelPos.x} y={f.labelPos.y} text-anchor={f.labelPos.anchor}>
             {f.label}
           </text>
         )}
       </g>
     ))}
-    <path d={outline} class="plan-wall"></path>
-    <text x={e.x + e.w / 2} y={H - 16} text-anchor="middle" class="entry-label">Entry ↑</text>
+    <path d={library.outline} class="plan-wall"></path>
   </g>
 
   {roomShapes.map((r) => (
@@ -134,9 +140,9 @@ const summary = rooms.map((r) => `${r.design.label} ${stateWords[r.state]}`).joi
           ></line>
         )}
         <rect x={r.table.x} y={r.table.y} width={r.table.w} height={r.table.h} rx="3" class="table"></rect>
-        {r.chairs.map((c) => <circle cx={c.cx} cy={c.cy} r="4" class="chair"></circle>)}
-        <text x={r.labelPos.x} y={r.labelPos.y} class="room-label">{r.label}</text>
-        <text x={r.seatsPos.x} y={r.seatsPos.y} class="room-seats">{r.seats}</text>
+        {r.chairs.map((c) => <circle cx={c.cx} cy={c.cy} r={r.r} class="chair"></circle>)}
+        <text x={r.labelPos.x} y={r.labelPos.y} text-anchor="middle" class="room-label">{r.label}</text>
+        <text x={r.seatsPos.x} y={r.seatsPos.y} text-anchor="middle" class="room-seats">{r.seats}</text>
       </g>
     </a>
   ))}

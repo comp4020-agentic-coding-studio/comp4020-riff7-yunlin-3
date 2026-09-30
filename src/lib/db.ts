@@ -29,7 +29,9 @@ migrate(db, { migrationsFolder: "./drizzle" });
 // of ANU Library group study rooms). Seeded once, on whichever machine boots
 // first against an empty database; never re-seeded once a room exists, so a
 // deploy never resets what's already there.
-const SEEDED_ROOMS = ["Hancock — Group Room 1", "Hancock — Group Room 2", "Chifley — Group Room 3"];
+// Real room numbers from ANU Library's floor plans (see src/lib/layout.ts);
+// drizzle/0002 renamed the original placeholders on existing databases.
+const SEEDED_ROOMS = ["Hancock — Group Study 3.33", "Hancock — Group Study 3.34", "Chifley — Group Study 3.05"];
 if (db.select().from(rooms).limit(1).all().length === 0) {
   for (const name of SEEDED_ROOMS) db.insert(rooms).values({ name }).run();
 }

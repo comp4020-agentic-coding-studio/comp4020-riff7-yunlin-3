@@ -163,7 +163,11 @@ const nextBoundaryTarget = isToday
           <h2 id={`lib-${library.id}-heading`}>
             {library.name} <span class="level">{library.level}</span>
           </h2>
-          <FloorPlan library={library} rooms={plan} />
+          <div class="library-body">
+          <figure>
+            <FloorPlan library={library} rooms={plan} />
+            <figcaption class="plan-caption">{library.level}, traced from {library.source}.</figcaption>
+          </figure>
           <div class="rooms">
         {libRooms.map(({ room, bookings, design }) => (
           <section class="room" aria-labelledby={`room-${room.id}`}>
@@ -195,6 +199,7 @@ const nextBoundaryTarget = isToday
             </ul>
           </section>
         ))}
+          </div>
           </div>
         </section>
       ))}
