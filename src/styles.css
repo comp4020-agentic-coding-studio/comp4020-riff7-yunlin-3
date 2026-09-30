@@ -504,3 +504,65 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Enlarged floor plan ------------------------------------------------ */
+
+.plan-figure {
+  margin: 0;
+  cursor: zoom-in;
+}
+
+.plan-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.plan-toggle {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 0.2rem;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.plan-toggle:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.plan-figure.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  max-width: none;
+  padding: 1rem;
+  background: var(--paper);
+  cursor: zoom-out;
+}
+
+.plan-figure.expanded svg.plan {
+  width: auto;
+  height: calc(100vh - 5rem);
+  max-width: 100%;
+}
+
+.plan-figure.expanded .plan-caption {
+  width: min(100%, 40rem);
+  font-size: 0.85rem;
+}
+
+body.plan-open {
+  overflow: hidden;
+}

@@ -164,9 +164,12 @@ const nextBoundaryTarget = isToday
             {library.name} <span class="level">{library.level}</span>
           </h2>
           <div class="library-body">
-          <figure>
+          <figure class="plan-figure">
             <FloorPlan library={library} rooms={plan} />
-            <figcaption class="plan-caption">{library.level}, traced from {library.source}.</figcaption>
+            <figcaption class="plan-caption">
+              <span>{library.level}, traced from {library.source}.</span>
+              <button type="button" class="plan-toggle" aria-expanded="false">Enlarge plan</button>
+            </figcaption>
           </figure>
           <div class="rooms">
         {libRooms.map(({ room, bookings, design }) => (
@@ -270,6 +273,29 @@ const nextBoundaryTarget = isToday
       // takes the delay from its own clock at load time, rather than
       // trusting a minute count computed at render time to still equal the
       // same number of real milliseconds by the time it fires.
+      // Floor plans are drawn at the real building's proportions, which is
+      // tall and thin at card size — clicking one (anywhere but a room,
+      // which stays a link to book it) opens it full-screen; Esc, the
+      // button, or another click puts it back.
+      const setExpanded = (figure, on) => {
+        figure.classList.toggle("expanded", on);
+        document.body.classList.toggle("plan-open", on);
+        const button = figure.querySelector(".plan-toggle");
+        button.setAttribute("aria-expanded", String(on));
+        button.textContent = on ? "Close plan ✕" : "Enlarge plan";
+        if (on) button.focus();
+      };
+      for (const figure of document.querySelectorAll(".plan-figure")) {
+        figure.addEventListener("click", (event) => {
+          if (event.target.closest("a")) return;
+          setExpanded(figure, !figure.classList.contains("expanded"));
+        });
+      }
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        for (const figure of document.querySelectorAll(".plan-figure.expanded")) setExpanded(figure, false);
+      });
+
       if (nextBoundaryTarget !== null) {
         setTimeout(() => location.reload(), Math.max(0, nextBoundaryTarget - Date.now()) + 5_000);
       }
