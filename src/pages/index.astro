@@ -66,6 +66,38 @@ const timeParam = (name: string) => {
 };
 const prefillStart = timeParam("start");
 const prefillEnd = timeParam("end");
+const minSeatsParam = Astro.url.searchParams.get("minSeats");
+const minSeats = minSeatsParam && /^\d+$/.test(minSeatsParam) ? Number(minSeatsParam) : 0;
+const feature = Astro.url.searchParams.get("feature") ?? "any";
+const availability = Astro.url.searchParams.get("availability") ?? "any";
+const toMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+const formatTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+const availableSlots = (bookings: (typeof roomsWithBookings)[number]["bookings"]) => {
+  const start = isToday ? Math.max(8 * 60, Math.ceil(toMinutes(nowTime) / 60) * 60) : 8 * 60;
+  const end = 22 * 60;
+  const slots: { start: string; end: string }[] = [];
+  for (let cursor = start; cursor < end; cursor += 60) {
+    const slotEnd = cursor + 60;
+    if (!bookings.some((booking) => toMinutes(booking.startTime) < slotEnd && toMinutes(booking.endTime) > cursor)) {
+      slots.push({ start: formatTime(cursor), end: formatTime(slotEnd) });
+    }
+  }
+  return slots;
+};
+const matchesRoomFilters = (entry: (typeof roomsWithBookings)[number]) => {
+  const design = designFor(entry.room.name);
+  if (!design || design.capacity < minSeats) return false;
+  if (feature === "screen" && !design.screen) return false;
+  if (feature === "whiteboard" && !design.whiteboard) return false;
+  const slots = availableSlots(entry.bookings);
+  if (availability === "now" && entry.bookings.some((booking) => booking.active)) return false;
+  if (availability === "today" && slots.length === 0) return false;
+  return true;
+};
 // Two views of the same day, kept in the URL so every link and reload lands
 // on the same one: the floor plans (default) or the timetable.
 const view = Astro.url.searchParams.get("view") === "timetable" ? "timetable" : "plans";
@@ -112,11 +144,17 @@ const libraries = LIBRARIES.map((library) => {
     params.set(`floor-${library.id}`, levelId);
     return `/?${params}#lib-${library.id}`;
   };
+  const filteredLevels = levels.map((level) => ({
+    ...level,
+    rooms: level.rooms.filter(matchesRoomFilters),
+    plan: level.plan.filter((planRoom) => level.rooms.some((room) => room.room.id === planRoom.id && matchesRoomFilters(room))),
+  }));
+  const filteredSelected = filteredLevels.find((level) => level.level.id === selected.level.id) ?? filteredLevels[0];
   return {
     library,
     rooms: libRooms,
-    levels,
-    selected,
+    levels: filteredLevels,
+    selected: filteredSelected,
     floorHref,
     inUse: libRooms.filter((r) => r.state === "now").length,
   };
@@ -231,6 +269,37 @@ const nextBoundaryTarget = isToday
             <button type="button" data-details="close">Close all</button>
           </span>
         </div>
+        <form class="room-filters" method="get">
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="view" value="plans" />
+          <label>
+            Seats
+            <select name="minSeats">
+              <option value="0" selected={minSeats === 0}>Any</option>
+              {[2, 4, 6, 10, 20, 40].map((seats) => (
+                <option value={seats} selected={minSeats === seats}>{seats}+</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Feature
+            <select name="feature">
+              <option value="any" selected={feature === "any"}>Any</option>
+              <option value="screen" selected={feature === "screen"}>Wall screen</option>
+              <option value="whiteboard" selected={feature === "whiteboard"}>Whiteboard</option>
+            </select>
+          </label>
+          <label>
+            Availability
+            <select name="availability">
+              <option value="any" selected={availability === "any"}>Any</option>
+              <option value="now" selected={availability === "now"}>Available now</option>
+              <option value="today" selected={availability === "today"}>Has a free hour</option>
+            </select>
+          </label>
+          <button type="submit">Filter rooms</button>
+          {(minSeats > 0 || feature !== "any" || availability !== "any") && <a href={`/?date=${date}#layouts-heading`}>Clear</a>}
+        </form>
       {libraries.map(({ library, rooms: libRooms, levels, selected, floorHref, inUse }) => (
         <details class="building" id={`lib-${library.id}`} open={libRooms.some((r) => r.bookings.length > 0) || Astro.url.searchParams.has(`floor-${library.id}`)}>
           <summary>
@@ -267,36 +336,57 @@ const nextBoundaryTarget = isToday
         {selected.rooms.length === 0 && (
           <p class="no-rooms">No bookable rooms on {selected.level.name} — pick another floor.</p>
         )}
-        {selected.rooms.map(({ room, bookings, design, state }) => (
-          <section class={state === "now" ? "room" : "room available"} aria-labelledby={`room-${room.id}`}>
-            <h4 id={`room-${room.id}`}>{room.name}</h4>
-            <p class="room-meta">{describeRoom(design)}</p>
-            <ul>
-              {bookings.length === 0 && <li class="empty">Free all day</li>}
-              {bookings.map((booking) => (
-                <li class={booking.active ? "active" : undefined}>
-                  <span class="time">
-                    {booking.startTime}–{booking.endTime}
-                  </span>
-                  <span class="who">{booking.bookedBy}</span>
-                  {booking.noShowDeadline && (
-                    <span class="no-show-note">auto-releases at {booking.noShowDeadline} unless checked in</span>
-                  )}
-                  {booking.active && !booking.checkedIn && (
-                    <form method="post" action={`/api/bookings/${booking.id}/checkin`}>
-                      <input type="hidden" name="date" value={date} />
-                      <button type="submit">Check in</button>
-                    </form>
-                  )}
-                  <form method="post" action={`/api/bookings/${booking.id}/cancel`}>
-                    <input type="hidden" name="date" value={date} />
-                    <button type="submit">Cancel</button>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        {selected.rooms.length === 0 && <p class="no-rooms">No rooms match these filters on {selected.level.name}.</p>}
+        {selected.rooms.map(({ room, bookings, design, state }) => {
+          const slots = availableSlots(bookings);
+          return (
+            <details class="room-details">
+              <summary class={state === "now" ? "room room-summary" : "room available room-summary"}>
+                <span>
+                  <h4 id={`room-${room.id}`}>{room.name}</h4>
+                  <span class="room-meta">{describeRoom(design)}</span>
+                </span>
+                <span class="room-summary-status">{slots.length ? `${slots.length} free hour${slots.length === 1 ? "" : "s"}` : "No free hours"}</span>
+              </summary>
+              <div class="room-details-body">
+                <h5>Available time slots</h5>
+                <ul class="available-slots">
+                  {bookings.length === 0 && <li class="empty">Free all day</li>}
+                  {slots.length === 0 && <li class="empty">No one-hour slots available.</li>}
+                  {slots.map((slot) => (
+                    <li>
+                      <span class="time">{slot.start}–{slot.end}</span>
+                      <a
+                        class="reserve-link"
+                        href={`/?${new URLSearchParams({ date, room: String(room.id), start: slot.start, end: slot.end })}#book`}
+                      >Reserve</a>
+                    </li>
+                  ))}
+                </ul>
+                {bookings.length > 0 && <h5>Booked slots</h5>}
+                <ul>
+                  {bookings.map((booking) => (
+                    <li class={booking.active ? "active" : undefined}>
+                      <span class="time">{booking.startTime}–{booking.endTime}</span>
+                      <span class="who">{booking.bookedBy}</span>
+                      {booking.noShowDeadline && <span class="no-show-note">auto-releases at {booking.noShowDeadline} unless checked in</span>}
+                      {booking.active && !booking.checkedIn && (
+                        <form method="post" action={`/api/bookings/${booking.id}/checkin`}>
+                          <input type="hidden" name="date" value={date} />
+                          <button type="submit">Check in</button>
+                        </form>
+                      )}
+                      <form method="post" action={`/api/bookings/${booking.id}/cancel`}>
+                        <input type="hidden" name="date" value={date} />
+                        <button type="submit">Cancel</button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          );
+        })}
           </div>
           </div>
         </details>
