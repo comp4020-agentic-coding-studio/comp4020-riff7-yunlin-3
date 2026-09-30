@@ -355,7 +355,7 @@ const nextBoundaryTarget = isToday
                   {slots.length === 0 && <li class="empty">No one-hour slots available.</li>}
                   {slots.map((slot) => (
                     <li>
-                      <span class="time">{slot.start}–{slot.end}</span>
+                      <span class="time">{slot.start} to {slot.end}</span>
                       <a
                         class="reserve-link"
                         href={`/?${new URLSearchParams({ date, room: String(room.id), start: slot.start, end: slot.end })}#book`}
