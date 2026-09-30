@@ -58,8 +58,11 @@ const roomShapes = rooms.map(({ id, design: d, state, href, name }) => {
   const th = Math.min(d.h * 0.28, 26);
   const tx = d.x + (d.w - tw) / 2;
   const ty = d.y + (d.h - th) / 2 + 4;
-  const top = Math.ceil(d.capacity / 2);
-  const bottom = Math.floor(d.capacity / 2);
+  // Big teaching rooms and labs draw at most 8 chairs — the seat count is
+  // in the label; the drawing only says "this is a room you sit in".
+  const drawn = Math.min(d.capacity, 8);
+  const top = Math.ceil(drawn / 2);
+  const bottom = Math.floor(drawn / 2);
   // Small rooms (Chifley's are ~40 units wide) get proportionally smaller chairs.
   const r = Math.max(2, Math.min(4, tw / (top + 1) / 2.4));
   const chairs = [
@@ -76,6 +79,8 @@ const roomShapes = rooms.map(({ id, design: d, state, href, name }) => {
     table: { x: tx, y: ty, w: tw, h: th },
     chairs,
     r,
+    // Too small for furniture and two labels: just the room number, centred.
+    compact: d.h < 45 || d.w < 45,
     door: wallSegment(d, d.door, 0.4, 0.6),
     screen: d.screen ? wallSegment(d, opposite[d.door], 0.3, 0.7) : null,
     whiteboard: d.whiteboard ? wallSegment(d, side[d.door], 0.25, 0.75) : null,
@@ -139,10 +144,17 @@ const summary = rooms.map((r) => `${r.design.label} ${stateWords[r.state]}`).joi
             class="whiteboard"
           ></line>
         )}
-        <rect x={r.table.x} y={r.table.y} width={r.table.w} height={r.table.h} rx="3" class="table"></rect>
-        {r.chairs.map((c) => <circle cx={c.cx} cy={c.cy} r={r.r} class="chair"></circle>)}
-        <text x={r.labelPos.x} y={r.labelPos.y} text-anchor="middle" class="room-label">{r.label}</text>
-        <text x={r.seatsPos.x} y={r.seatsPos.y} text-anchor="middle" class="room-seats">{r.seats}</text>
+        {!r.compact && <rect x={r.table.x} y={r.table.y} width={r.table.w} height={r.table.h} rx="3" class="table"></rect>}
+        {!r.compact && r.chairs.map((c) => <circle cx={c.cx} cy={c.cy} r={r.r} class="chair"></circle>)}
+        <text
+          x={r.labelPos.x}
+          y={r.compact ? r.rect.y + r.rect.h / 2 + 5 : r.labelPos.y}
+          text-anchor="middle"
+          class="room-label"
+        >
+          {r.label}
+        </text>
+        {!r.compact && <text x={r.seatsPos.x} y={r.seatsPos.y} text-anchor="middle" class="room-seats">{r.seats}</text>}
       </g>
     </a>
   ))}

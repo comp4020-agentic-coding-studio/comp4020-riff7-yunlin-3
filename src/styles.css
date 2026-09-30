@@ -242,7 +242,7 @@ a:focus-visible {
 .library-body {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -258,7 +258,7 @@ a:focus-visible {
   }
 
   .library-body figure {
-    max-width: 26rem;
+    max-width: 15rem;
     margin-inline: auto;
   }
 }
@@ -731,4 +731,130 @@ body.plan-open {
 .view-toggle a[aria-current="page"] {
   background: var(--ink);
   color: var(--paper);
+}
+
+/* --- Collapsible building panels ---------------------------------------- */
+
+.layouts {
+  margin-block: 1.5rem;
+}
+
+.layouts-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.layouts-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.layouts-actions button {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.7rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.layouts-actions button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+details.building {
+  border: 1.5px solid var(--line);
+  border-radius: 0.35rem;
+  margin-bottom: 0.6rem;
+  background: var(--paper);
+}
+
+details.building[open] {
+  border-color: var(--ink);
+}
+
+details.building > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+details.building > summary::-webkit-details-marker {
+  display: none;
+}
+
+.building-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.building-title::before {
+  content: "▸";
+  font-size: 0.9rem;
+  transition: transform 0.15s;
+}
+
+details.building[open] .building-title::before {
+  transform: rotate(90deg);
+}
+
+.building-title h3 {
+  font-size: 1.05rem;
+}
+
+.building-status {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.chip {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1.5px solid;
+}
+
+.chip-free {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
+.chip-now {
+  color: var(--gold-ink);
+  border-color: var(--gold);
+  background: var(--gold-tint);
+}
+
+details.building .library-body {
+  padding: 0 1rem 1rem;
+}
+
+.room h4 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Every building's plan sits in the same box, whatever its proportions, so
+   the panels line up; "Enlarge plan" is where the detail is read. */
+.plan-figure:not(.expanded) svg.plan {
+  height: 20rem;
+  width: 100%;
+}
+
+.library-body .rooms {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
 }

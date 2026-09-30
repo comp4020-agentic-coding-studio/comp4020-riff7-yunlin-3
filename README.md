@@ -43,6 +43,14 @@ A crit-session riff took the board past its original brief in two ways:
   Gold still means only one thing. Clicking a room opens the booking form
   with that room already picked. Seat counts are indicative, because the
   library publishes which rooms exist but not how many chairs each has.
+- **Labs and teaching rooms beyond the libraries.** The board also covers
+  Marie Reay (teaching rooms 4.02–4.05, traced from Kambri's venue brochure),
+  Hanna Neumann (Linux labs 1.23 and 1.24), and Skaidrite Darius, the former
+  CSIT building 108 (labs N112–N114 and N115/N116). Neither of the last two
+  has a public floor plan. Their outer walls are the OpenStreetMap
+  footprints, and the room positions inside are estimates. Each building's
+  floor layout is a panel you can open and close, and a Timetable view shows
+  every room's day side by side.
 - **Check-in, or lose the room.** The README's own problem was a booked room
   with nobody in it. Now a booking that has started shows a *Check in*
   button. If nobody checks in within five minutes of the start, the booking

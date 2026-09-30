@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { ROOM_DESIGNS } from "./layout";
 import { type Booking, type Room, bookings, rooms } from "./schema";
 
 // One SQLite file is the app's whole persistent state. In production
@@ -25,15 +26,15 @@ export const db = drizzle(client);
 migrate(db, { migrationsFolder: "./drizzle" });
 
 // The rooms themselves aren't something a booking app's users create — they're
-// the fixed slice of the real system this prototype stands in for (a handful
-// of ANU Library group study rooms). Seeded once, on whichever machine boots
-// first against an empty database; never re-seeded once a room exists, so a
-// deploy never resets what's already there.
-// Real room numbers from ANU Library's floor plans (see src/lib/layout.ts);
-// drizzle/0002 renamed the original placeholders on existing databases.
-const SEEDED_ROOMS = ["Hancock — Group Study 3.33", "Hancock — Group Study 3.34", "Chifley — Group Study 3.05"];
-if (db.select().from(rooms).limit(1).all().length === 0) {
-  for (const name of SEEDED_ROOMS) db.insert(rooms).values({ name }).run();
+// the fixed slice of the real system this prototype stands in for: ANU
+// Library group study rooms and teaching labs, one entry per room design in
+// src/lib/layout.ts (the single list of what exists). Each is inserted only
+// if no room already has that name, so a deploy that adds a building adds its
+// rooms without touching existing ones or their bookings; drizzle/0002
+// renamed the original placeholder rooms before this runs.
+const existingNames = new Set(listRooms().map((room) => room.name));
+for (const name of Object.keys(ROOM_DESIGNS)) {
+  if (!existingNames.has(name)) db.insert(rooms).values({ name }).run();
 }
 
 export type { Booking, Room };
@@ -44,6 +45,7 @@ export class ValidationError extends Error {}
 export function listRooms(): Room[] {
   return db.select().from(rooms).orderBy(rooms.id).all();
 }
+
 
 export function listBookingsForDate(date: string): Booking[] {
   return db.select().from(bookings).where(eq(bookings.date, date)).orderBy(bookings.startTime).all();

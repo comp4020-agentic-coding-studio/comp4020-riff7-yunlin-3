@@ -143,8 +143,9 @@ const nextBoundaryTarget = isToday
     <main>
       <h1>Room board</h1>
       <p>
-        A shared, live view of a handful of ANU Library group study rooms: who's booked what, and what's free — see
-        the <a href="/readme/">README</a> for what this prototype is standing in for.
+        A shared, live view of ANU group study rooms, teaching rooms and computer labs across Hancock, Chifley, Marie
+        Reay, Hanna Neumann and Skaidrite Darius: who's booked what, and what's free — see the
+        <a href="/readme/">README</a> for what this prototype is standing in for.
       </p>
 
       <nav aria-label="date">
@@ -194,23 +195,39 @@ const nextBoundaryTarget = isToday
       </section>
       )}
 
-      {view === "plans" && libraries.map(({ library, rooms: libRooms, plan }) => (
-        <section class="library" id={`lib-${library.id}`} aria-labelledby={`lib-${library.id}-heading`}>
-          <h2 id={`lib-${library.id}-heading`}>
-            {library.name} <span class="level">{library.level}</span>
-          </h2>
+      {view === "plans" && (
+      <section class="layouts" aria-labelledby="layouts-heading">
+        <div class="layouts-head">
+          <h2 id="layouts-heading">Floor layouts</h2>
+          <span class="layouts-actions">
+            <button type="button" data-details="open">Open all</button>
+            <button type="button" data-details="close">Close all</button>
+          </span>
+        </div>
+      {libraries.map(({ library, rooms: libRooms, plan, inUse }) => (
+        <details class="building" id={`lib-${library.id}`} open={libRooms.some((r) => r.bookings.length > 0)}>
+          <summary>
+            <span class="building-title">
+              <h3 id={`lib-${library.id}-heading`}>{library.name}</h3>
+              <span class="level">{library.level}</span>
+            </span>
+            <span class="building-status">
+              <span class="chip chip-free">{libRooms.length - inUse} available</span>
+              {inUse > 0 && <span class="chip chip-now">{inUse} in use</span>}
+            </span>
+          </summary>
           <div class="library-body">
           <figure class="plan-figure">
             <FloorPlan library={library} rooms={plan} />
             <figcaption class="plan-caption">
-              <span>{library.level}, traced from {library.source}.</span>
+              <span>{library.level}, from {library.source}.</span>
               <button type="button" class="plan-toggle" aria-expanded="false">Enlarge plan</button>
             </figcaption>
           </figure>
           <div class="rooms">
         {libRooms.map(({ room, bookings, design, state }) => (
           <section class={state === "now" ? "room" : "room available"} aria-labelledby={`room-${room.id}`}>
-            <h3 id={`room-${room.id}`}>{room.name}</h3>
+            <h4 id={`room-${room.id}`}>{room.name}</h4>
             <p class="room-meta">{describeRoom(design)}</p>
             <ul>
               {bookings.length === 0 && <li class="empty">Free all day</li>}
@@ -240,8 +257,10 @@ const nextBoundaryTarget = isToday
         ))}
           </div>
           </div>
-        </section>
+        </details>
       ))}
+      </section>
+      )}
 
       <form method="post" action="/api/bookings" class="book-form" id="book">
         <h2>Book a room</h2>
@@ -331,6 +350,21 @@ const nextBoundaryTarget = isToday
         if (event.key !== "Escape") return;
         for (const figure of document.querySelectorAll(".plan-figure.expanded")) setExpanded(figure, false);
       });
+
+      // Floor layouts are collapsible: "Open all"/"Close all", and a campus
+      // map link to #lib-<id> opens that building's panel before jumping.
+      for (const button of document.querySelectorAll("[data-details]")) {
+        button.addEventListener("click", () => {
+          const open = button.dataset.details === "open";
+          for (const d of document.querySelectorAll("details.building")) d.open = open;
+        });
+      }
+      const openFromHash = () => {
+        const target = location.hash && document.querySelector(location.hash);
+        if (target instanceof HTMLDetailsElement) target.open = true;
+      };
+      addEventListener("hashchange", openFromHash);
+      openFromHash();
 
       if (nextBoundaryTarget !== null) {
         setTimeout(() => location.reload(), Math.max(0, nextBoundaryTarget - Date.now()) + 5_000);
