@@ -1,5 +1,5 @@
 ---
-import { type Library, googleMapsLink } from "../lib/layout";
+import type { Library } from "../lib/layout";
 
 interface Props {
   libraries: { library: Library; roomCount: number; inUse: number }[];
@@ -7,42 +7,86 @@ interface Props {
 
 const { libraries } = Astro.props;
 
-// Google Maps, centred between the libraries at a zoom that shows both —
-// Google labels the buildings itself, so the map is the real campus rather
-// than a drawing of it. The keyless embed can't carry more than one pin, so
-// each library's exact pin is a link beside the map, next to its live
-// status from this board.
+// The Google embed supplies the geographic context. The five labelled markers
+// are positioned from the same building coordinates so every bookable building
+// remains visible without requiring a Maps API key.
 const lats = libraries.map((l) => l.library.coords.lat);
 const lngs = libraries.map((l) => l.library.coords.lng);
+const latMin = Math.min(...lats);
+const latMax = Math.max(...lats);
+const lngMin = Math.min(...lngs);
+const lngMax = Math.max(...lngs);
 const centre = {
-  lat: (Math.min(...lats) + Math.max(...lats)) / 2,
-  lng: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+  lat: (latMin + latMax) / 2,
+  lng: (lngMin + lngMax) / 2,
 };
 const embed = `https://maps.google.com/maps?ll=${centre.lat},${centre.lng}&z=17&t=m&output=embed`;
+const markerPosition = (coords: Library["coords"]) => ({
+  left: `${12 + ((coords.lng - lngMin) / Math.max(0.000001, lngMax - lngMin)) * 76}%`,
+  top: `${12 + ((latMax - coords.lat) / Math.max(0.000001, latMax - latMin)) * 76}%`,
+});
 ---
 
 <div class="campus">
-  <iframe
-    class="campus-map"
-    src={embed}
-    title="Google Map of the ANU Acton campus around Hancock and Chifley libraries"
-    loading="lazy"
-    referrerpolicy="no-referrer-when-downgrade"
-  ></iframe>
+  <div class="campus-map-wrap">
+    <iframe
+      class="campus-map"
+      src={embed}
+      title="Google Map of the ANU Acton campus around five study-room buildings"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+    <div class="campus-markers" aria-label="Study-room buildings">
+      {libraries.map(({ library: l }) => (
+        <a
+          class="campus-marker"
+          data-building={l.id}
+          href={`#lib-${l.id}`}
+          style={`left: ${markerPosition(l.coords).left}; top: ${markerPosition(l.coords).top};`}
+          aria-label={`Jump to ${l.name} floor plan`}
+        >
+          <span class="campus-marker-dot" aria-hidden="true"></span>
+          <span>{l.name}</span>
+        </a>
+      ))}
+    </div>
+  </div>
   <ul class="campus-list">
     {libraries.map(({ library: l, roomCount, inUse }) => (
-      <li class={inUse > 0 ? "in-use" : undefined}>
-        <strong>{l.name}</strong>
+      <li class={inUse > 0 ? "in-use" : undefined} data-building-row={l.id}>
+        <strong><a href={`#lib-${l.id}`}>{l.name}</a></strong>
         <span class="campus-building">{l.building}</span>
         <span class="campus-status">
           {roomCount} bookable room{roomCount === 1 ? "" : "s"}
           {inUse > 0 && <span class="campus-now"> · {inUse} in use now</span>}
         </span>
-        <span class="campus-links">
-          <a href={`#lib-${l.id}`}>Floor plan</a>
-          <a href={googleMapsLink(l.coords)} rel="noopener" target="_blank">Open in Google Maps</a>
-        </span>
       </li>
     ))}
   </ul>
 </div>
+
+<script>
+  const campus = document.querySelector(".campus");
+  if (campus) {
+    const setBuilding = (id: string) => {
+      for (const element of campus.querySelectorAll("[data-building], [data-building-row]")) {
+        const item = element as HTMLElement;
+        item.classList.toggle("is-highlighted", item.dataset.building === id || item.dataset.buildingRow === id);
+      }
+    };
+    for (const row of campus.querySelectorAll("[data-building-row]")) {
+      const item = row as HTMLElement;
+      item.addEventListener("mouseenter", () => setBuilding(item.dataset.buildingRow ?? ""));
+      item.addEventListener("focusin", () => setBuilding(item.dataset.buildingRow ?? ""));
+      row.addEventListener("mouseleave", () => setBuilding(""));
+      row.addEventListener("focusout", () => setBuilding(""));
+    }
+    for (const marker of campus.querySelectorAll("[data-building]")) {
+      const item = marker as HTMLElement;
+      item.addEventListener("mouseenter", () => setBuilding(item.dataset.building ?? ""));
+      item.addEventListener("focusin", () => setBuilding(item.dataset.building ?? ""));
+      marker.addEventListener("mouseleave", () => setBuilding(""));
+      marker.addEventListener("focusout", () => setBuilding(""));
+    }
+  }
+</script>

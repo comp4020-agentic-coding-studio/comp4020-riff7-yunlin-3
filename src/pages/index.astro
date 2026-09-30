@@ -213,12 +213,6 @@ const nextBoundaryTarget = isToday
         <a href="/readme/">README</a> for what this prototype is standing in for.
       </p>
 
-      <nav aria-label="date">
-        <a href={`/?date=${shiftDate(date, -1)}${view === "timetable" ? "&view=timetable" : ""}`}>&larr; {shiftDate(date, -1)}</a>
-        <strong>{date}{isToday ? " (today)" : ""}</strong>
-        <a href={`/?date=${shiftDate(date, 1)}${view === "timetable" ? "&view=timetable" : ""}`}>{shiftDate(date, 1)} &rarr;</a>
-      </nav>
-
       {error && (
         <p class="error" role="alert">
           {errorMessages[error] ?? "Something went wrong — try again."}
@@ -229,6 +223,12 @@ const nextBoundaryTarget = isToday
         <h2 id="campus-heading">Where the rooms are</h2>
         <CampusMap libraries={libraries.map((l) => ({ library: l.library, roomCount: l.rooms.length, inUse: l.inUse }))} />
       </section>
+
+      <nav aria-label="date">
+        <a href={`/?date=${shiftDate(date, -1)}${view === "timetable" ? "&view=timetable" : ""}`}>&larr; {shiftDate(date, -1)}</a>
+        <strong>{date}{isToday ? " (today)" : ""}</strong>
+        <a href={`/?date=${shiftDate(date, 1)}${view === "timetable" ? "&view=timetable" : ""}`}>{shiftDate(date, 1)} &rarr;</a>
+      </nav>
 
       <ul class="legend" aria-label="Floor plan key">
         <li><span class="swatch swatch-free"></span>Available (blue outline)</li>

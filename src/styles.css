@@ -115,11 +115,61 @@ nav[aria-label="date"] {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
+.campus-map-wrap {
+  position: relative;
+}
+
 .campus-map {
   width: 100%;
   aspect-ratio: 4 / 3;
   border: 1.5px solid var(--ink);
   border-radius: 0.25rem;
+  display: block;
+}
+
+.campus-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.campus-marker {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transform: translate(-0.5rem, -50%);
+  padding: 0.18rem 0.35rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-decoration: none;
+  pointer-events: auto;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
+}
+
+.campus-marker-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.campus-marker:hover,
+.campus-marker:focus-visible,
+.campus-marker.is-highlighted {
+  border-color: var(--blue);
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.campus-marker.is-highlighted .campus-marker-dot {
+  background: var(--blue);
 }
 
 .campus-list {
@@ -145,6 +195,21 @@ nav[aria-label="date"] {
   border-left-color: var(--gold);
 }
 
+.campus-list li.is-highlighted {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--blue-tint);
+}
+
+.campus-list strong a {
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.12em;
+}
+
+.campus-list strong a:hover,
+.campus-list strong a:focus-visible {
+  color: var(--blue);
+}
+
 .campus-building,
 .campus-status {
   color: var(--muted);
@@ -154,15 +219,6 @@ nav[aria-label="date"] {
 .campus-now {
   color: var(--gold-ink);
   font-weight: 700;
-}
-
-.campus-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 600;
 }
 
 svg.plan {
