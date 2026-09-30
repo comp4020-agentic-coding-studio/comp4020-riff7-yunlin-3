@@ -1,0 +1,119 @@
+---
+// The day at a glance: one column per room, time running down in 15-minute
+// grid rows, each booking a block spanning its real start and end. Free
+// whole hours are links that open the booking form with room and time
+// filled in; the gold line is the wall clock, the same "now" the plans use.
+interface Props {
+  date: string;
+  isToday: boolean;
+  nowTime: string;
+  rooms: {
+    id: number;
+    label: string;
+    library: string;
+    bookings: { id: number; startTime: string; endTime: string; bookedBy: string; active: boolean }[];
+  }[];
+}
+
+const { date, isToday, nowTime, rooms } = Astro.props;
+
+const toMin = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
+const hhmm = (min: number) => `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+// 08:00–22:00 by default, stretched to fit any booking outside that. Today
+// starts at the current hour instead — the morning that's already gone is
+// dead space — but still reaches back far enough to show anything running now.
+const all = rooms.flatMap((r) => r.bookings);
+const now = toMin(nowTime);
+const visible = isToday ? all.filter((b) => toMin(b.endTime) > now) : all;
+const dayStart = isToday ? Math.min(22, Math.floor(now / 60)) : 8;
+const startHour = Math.min(dayStart, ...visible.map((b) => Math.floor(toMin(b.startTime) / 60)));
+const endHour = Math.max(22, ...all.map((b) => Math.ceil(toMin(b.endTime) / 60)));
+const first = startHour * 60;
+const rowOf = (min: number) => (min - first) / 15 + 2; // row 1 is the header
+const rowCount = ((endHour - startHour) * 60) / 15;
+
+const hours = Array.from({ length: endHour - startHour }, (_, i) => {
+  const start = first + i * 60;
+  return { label: hhmm(start), row: rowOf(start), past: isToday && start + 60 <= now };
+});
+
+const columns = rooms.map((room, i) => {
+  const col = i + 2;
+  const blocks = room.bookings.filter((b) => toMin(b.endTime) > first).map((b) => ({
+    ...b,
+    col,
+    rowStart: rowOf(toMin(b.startTime)),
+    rowEnd: rowOf(toMin(b.endTime)),
+    // Spaced, so this text never collides with the room cards' own
+    // "HH:MM–HH:MM" (spec/booking.test.ts counts those exactly).
+    span: `${b.startTime} – ${b.endTime}`,
+  }));
+  const free = hours.flatMap((h) => {
+    const s = toMin(h.label);
+    const e = s + 60;
+    const clash = room.bookings.some((b) => toMin(b.startTime) < e && toMin(b.endTime) > s);
+    if (clash || h.past) return [];
+    return [
+      {
+        col,
+        row: h.row,
+        href: `/?${new URLSearchParams({ date, view: "timetable", room: String(room.id), start: hhmm(s), end: hhmm(e) })}#book`,
+        aria: `Book ${room.label} from ${hhmm(s)} to ${hhmm(e)}`,
+      },
+    ];
+  });
+  return { ...room, col, blocks, free };
+});
+
+const nowRow = isToday && now >= first && now < endHour * 60 ? Math.floor(rowOf(now)) : null;
+const gridStyle = `grid-template-columns: 3.5rem repeat(${rooms.length}, minmax(7.5rem, 1fr)); grid-template-rows: auto repeat(${rowCount}, 0.75rem);`;
+---
+
+<div class="timetable-scroll" tabindex="0" role="region" aria-label={`Timetable for ${date}`}>
+  <div class="timetable" style={gridStyle}>
+    <div class="tt-corner" style="grid-column: 1; grid-row: 1;"></div>
+    {columns.map((c) => (
+      <div class="tt-head" style={`grid-column: ${c.col}; grid-row: 1;`}>
+        <strong>{c.label}</strong>
+        <span>{c.library}</span>
+      </div>
+    ))}
+
+    {hours.map((h) => (
+      <>
+        <div class={`tt-hour${h.past ? " past" : ""}`} style={`grid-column: 1 / -1; grid-row: ${h.row} / span 4;`} aria-hidden="true"></div>
+        <div class="tt-time" style={`grid-column: 1; grid-row: ${h.row} / span 4;`}>{h.label}</div>
+      </>
+    ))}
+
+    {columns.map((c) =>
+      c.free.map((f) => (
+        <a class="tt-free" href={f.href} aria-label={f.aria} style={`grid-column: ${f.col}; grid-row: ${f.row} / span 4;`}>
+          <span aria-hidden="true">+ Book</span>
+        </a>
+      )),
+    )}
+
+    {columns.map((c) =>
+      c.blocks.map((b) => (
+        <div
+          class={`tt-booking${b.active ? " active" : ""}`}
+          style={`grid-column: ${b.col}; grid-row: ${b.rowStart} / ${b.rowEnd};`}
+        >
+          <span class="tt-who">{b.bookedBy}</span>
+          <span class="tt-span">{b.span}</span>
+        </div>
+      )),
+    )}
+
+    {nowRow !== null && (
+      <div class="tt-now" style={`grid-column: 1 / -1; grid-row: ${nowRow};`}>
+        <span>now {nowTime}</span>
+      </div>
+    )}
+  </div>
+</div>

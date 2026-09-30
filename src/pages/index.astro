@@ -4,6 +4,7 @@ import { GRACE_MINUTES, expireNoShows, listBookingsForDate, listRooms } from "..
 import { LIBRARIES, type RoomState, describeRoom, designFor } from "../lib/layout";
 import CampusMap from "../components/CampusMap.astro";
 import FloorPlan from "../components/FloorPlan.astro";
+import Timetable from "../components/Timetable.astro";
 import "../styles.css";
 
 // All times on this board are Canberra wall-clock text (see src/lib/schema.ts)
@@ -58,6 +59,17 @@ const roomsWithBookings = rooms.map((room) => ({
 // ahead of it on this date (on today, one that hasn't ended yet) — drawn as
 // ink hatching, so gold stays the one colour for "in use right now".
 const preselectRoom = Number(Astro.url.searchParams.get("room"));
+// A timetable slot link carries its hour; only well-formed times prefill.
+const timeParam = (name: string) => {
+  const v = Astro.url.searchParams.get(name) ?? "";
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : undefined;
+};
+const prefillStart = timeParam("start");
+const prefillEnd = timeParam("end");
+// Two views of the same day, kept in the URL so every link and reload lands
+// on the same one: the floor plans (default) or the timetable.
+const view = Astro.url.searchParams.get("view") === "timetable" ? "timetable" : "plans";
+const viewHref = (v: string) => `/?${new URLSearchParams({ date, ...(v === "timetable" ? { view: v } : {}) })}`;
 const stateOf = (bookings: (typeof roomsWithBookings)[number]["bookings"]): RoomState =>
   bookings.some((b) => b.active)
     ? "now"
@@ -136,9 +148,9 @@ const nextBoundaryTarget = isToday
       </p>
 
       <nav aria-label="date">
-        <a href={`/?date=${shiftDate(date, -1)}`}>&larr; {shiftDate(date, -1)}</a>
+        <a href={`/?date=${shiftDate(date, -1)}${view === "timetable" ? "&view=timetable" : ""}`}>&larr; {shiftDate(date, -1)}</a>
         <strong>{date}{isToday ? " (today)" : ""}</strong>
-        <a href={`/?date=${shiftDate(date, 1)}`}>{shiftDate(date, 1)} &rarr;</a>
+        <a href={`/?date=${shiftDate(date, 1)}${view === "timetable" ? "&view=timetable" : ""}`}>{shiftDate(date, 1)} &rarr;</a>
       </nav>
 
       {error && (
@@ -153,12 +165,36 @@ const nextBoundaryTarget = isToday
       </section>
 
       <ul class="legend" aria-label="Floor plan key">
-        <li><span class="swatch swatch-free"></span>Free</li>
+        <li><span class="swatch swatch-free"></span>Available (blue outline)</li>
         <li><span class="swatch swatch-booked"></span>Booked later</li>
         <li><span class="swatch swatch-now"></span>In use now</li>
       </ul>
 
-      {libraries.map(({ library, rooms: libRooms, plan }) => (
+      <nav class="view-toggle" aria-label="view">
+        <a href={viewHref("plans")} aria-current={view === "plans" ? "page" : undefined}>Floor plans</a>
+        <a href={viewHref("timetable")} aria-current={view === "timetable" ? "page" : undefined}>Timetable</a>
+      </nav>
+
+      {view === "timetable" && (
+      <section class="timetable-section" aria-labelledby="timetable-heading">
+        <h2 id="timetable-heading">Timetable for {date}{isToday ? " (today)" : ""}</h2>
+        <Timetable
+          date={date}
+          isToday={isToday}
+          nowTime={nowTime}
+          rooms={libraries.flatMap(({ library, rooms: libRooms }) =>
+            libRooms.map(({ room, design, bookings }) => ({
+              id: room.id,
+              label: design.label,
+              library: library.name,
+              bookings,
+            })),
+          )}
+        />
+      </section>
+      )}
+
+      {view === "plans" && libraries.map(({ library, rooms: libRooms, plan }) => (
         <section class="library" id={`lib-${library.id}`} aria-labelledby={`lib-${library.id}-heading`}>
           <h2 id={`lib-${library.id}-heading`}>
             {library.name} <span class="level">{library.level}</span>
@@ -172,8 +208,8 @@ const nextBoundaryTarget = isToday
             </figcaption>
           </figure>
           <div class="rooms">
-        {libRooms.map(({ room, bookings, design }) => (
-          <section class="room" aria-labelledby={`room-${room.id}`}>
+        {libRooms.map(({ room, bookings, design, state }) => (
+          <section class={state === "now" ? "room" : "room available"} aria-labelledby={`room-${room.id}`}>
             <h3 id={`room-${room.id}`}>{room.name}</h3>
             <p class="room-meta">{describeRoom(design)}</p>
             <ul>
@@ -224,11 +260,11 @@ const nextBoundaryTarget = isToday
         </div>
         <div>
           <label for="startTime">From</label>
-          <input id="startTime" name="startTime" type="time" required />
+          <input id="startTime" name="startTime" type="time" required value={prefillStart} />
         </div>
         <div>
           <label for="endTime">To</label>
-          <input id="endTime" name="endTime" type="time" required />
+          <input id="endTime" name="endTime" type="time" required value={prefillEnd} />
         </div>
         <button>Book {date}</button>
       </form>

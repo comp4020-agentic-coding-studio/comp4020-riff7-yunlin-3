@@ -9,6 +9,8 @@
   --gold: #be830e;
   --gold-ink: #7a5306;
   --gold-tint: color-mix(in srgb, var(--gold) 22%, white);
+  --blue: #1f5fbf;
+  --blue-tint: color-mix(in srgb, var(--blue) 10%, white);
   --sans: "Public Sans", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -210,6 +212,7 @@ a:focus-visible {
 
 .swatch-free {
   background: var(--paper);
+  border-color: var(--blue);
 }
 
 .swatch-booked {
@@ -313,6 +316,12 @@ a:focus-visible {
   stroke-width: 2.5;
 }
 
+.plan-room.state-free .room-shape,
+.plan-room.state-booked .room-shape {
+  stroke: var(--blue);
+  stroke-width: 3;
+}
+
 .plan-room.state-now .room-shape {
   fill: var(--gold-tint);
   stroke: var(--gold);
@@ -367,6 +376,10 @@ a:focus-visible {
   display: grid;
   gap: 0.75rem;
   align-content: start;
+}
+
+.room.available {
+  border: 2px solid var(--blue);
 }
 
 .room {
@@ -565,4 +578,157 @@ a:focus-visible {
 
 body.plan-open {
   overflow: hidden;
+}
+
+/* --- Timetable ---------------------------------------------------------- */
+
+.timetable-section {
+  margin-block: 2rem;
+}
+
+.timetable-scroll {
+  overflow-x: auto;
+  border: 1.5px solid var(--ink);
+  border-radius: 0.25rem;
+}
+
+.timetable {
+  display: grid;
+  min-width: max-content;
+  position: relative;
+  font-size: 0.8rem;
+}
+
+.tt-corner,
+.tt-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.45rem 0.6rem;
+}
+
+.tt-head {
+  display: grid;
+  line-height: 1.2;
+}
+
+.tt-head span {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.tt-hour {
+  border-top: 1px solid var(--line);
+  z-index: 0;
+}
+
+.tt-hour.past {
+  background: var(--soft);
+}
+
+.tt-time {
+  z-index: 1;
+  padding: 0.1rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.tt-free {
+  z-index: 1;
+  margin: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed color-mix(in srgb, var(--blue) 55%, white);
+  border-radius: 0.2rem;
+  color: var(--blue);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-decoration: none;
+  opacity: 0.55;
+}
+
+.tt-free:hover,
+.tt-free:focus-visible {
+  opacity: 1;
+  border-style: solid;
+  border-color: var(--blue);
+  background: var(--blue-tint);
+}
+
+.tt-booking {
+  z-index: 2;
+  margin: 2px 3px;
+  padding: 0.25rem 0.45rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.2rem;
+  border-left: 4px solid var(--ink);
+  background: repeating-linear-gradient(45deg, #f2f2f2 0 4px, #e6e6e6 4px 5px);
+  line-height: 1.25;
+}
+
+.tt-booking.active {
+  border-left-color: var(--gold);
+  background: var(--gold-tint);
+}
+
+.tt-who {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tt-span {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-now {
+  z-index: 4;
+  align-self: start;
+  border-top: 2px solid var(--gold);
+  pointer-events: none;
+}
+
+.tt-now span {
+  position: relative;
+  top: -0.6rem;
+  margin-left: 0.2rem;
+  padding: 0 0.3rem;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 0.15rem;
+}
+
+/* --- View toggle -------------------------------------------------------- */
+
+.view-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 0.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+}
+
+.view-toggle a {
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.view-toggle a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--paper);
 }
