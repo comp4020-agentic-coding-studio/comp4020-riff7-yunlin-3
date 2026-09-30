@@ -769,6 +769,49 @@ body.plan-open {
   color: var(--paper);
 }
 
+.room-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--soft);
+  border-radius: 0.25rem;
+}
+
+.room-filters label {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.room-filters select,
+.room-filters button {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.25rem 0.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 0.2rem;
+  background: var(--paper);
+}
+
+.room-filters button {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.room-filters button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.room-filters a {
+  padding: 0.25rem 0.2rem;
+  font-size: 0.82rem;
+}
+
 details.building {
   border: 1.5px solid var(--line);
   border-radius: 0.35rem;
@@ -846,6 +889,82 @@ details.building .library-body {
 .room h4 {
   font-size: 0.95rem;
   margin: 0;
+}
+
+.room-details {
+  border-radius: 0.25rem;
+}
+
+.room-details[open] {
+  border: 1px solid var(--line);
+}
+
+.room-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.room-summary::-webkit-details-marker {
+  display: none;
+}
+
+.room-summary::before {
+  content: "▸";
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+}
+
+.room-details[open] .room-summary::before {
+  transform: rotate(90deg);
+}
+
+.room-summary > span:first-of-type {
+  flex: 1;
+}
+
+.room-summary-status {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.room-details-body {
+  padding: 0 1rem 0.75rem;
+}
+
+.room-details-body h5 {
+  margin: 0.4rem 0 0.25rem;
+  font-size: 0.8rem;
+}
+
+.available-slots {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 0.4rem !important;
+}
+
+.available-slots li {
+  padding: 0 !important;
+  border: 1px solid var(--line);
+}
+
+.reserve-link {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.reserve-link:hover,
+.reserve-link:focus-visible {
+  text-decoration: underline;
 }
 
 /* Every building's plan sits in the same box, whatever its proportions, so
